@@ -1,122 +1,155 @@
-# Eddie Module Ice Phenology ------
-# this is an adaption of the eddie module on ice phenology to 
-# examine regressions of ice on off and duration of ice cover from lakes
-# 
-# The first step is to use a demonstration of Lake Sunapee, New Hampshire, USA
-# then the script will allow students to adapt the code to be use to examine 
-# other lakes
-
-# Install libraries------
-# Install missing libraries for use to exame data using tidyverse
-# this only has to be done one time and a # can be put in front of 
-# the code to comment it out so it does not run in the future as now
+---
+title: "Eddie Ice Phenology R Notebook"
+output: html_notebook
+---
+# Eddie Module Ice Phenology     
+This is an adaption of the eddie module on ice phenology to examine regressions of ice on off and duration of ice cover from lakes.    
+     
+The first step is to use a demonstration of Lake Sunapee, New Hampshire, USA then the script will allow students to adapt the code to be use to examine other lakes.       
+    
+# Install libraries     
+Install  libraries for use to examine data using tidyverse this only has to be done one time and a # can be put in front of the code to comment it out so it does not run in the future as now.   
+```{r install libraries}
 # install.packages("tidyverse")
 # install.packages("readxl")
 # install.packages("janitor")
 # install.packages("lubridate")
 # install.packages("broom")
+```
 
-# Load libraries -----
-# Load the libraries each time you run a script or program
+# Load libraries    
+Load the libraries each time you run a script or program   
+```{r load libraries}
 library(tidyverse) # loads a lot of libraries in this one to add more functionality
 library(readxl) # allows you to read in excel files
 library(janitor) # cleans up column names and removes empty columns if wanted
 library(lubridate) # allows easy conversion of varaibles to date format
 library(broom) # cleans up output for easy presentation
+```
+   
+# Read file   
+Note since they are all in different sheets you can change         
+      sheet = "name of lake"     
+to the name you are interested in to read in that lake       
 
-# Read file ------
-# note since they are all in different sheets you can change
-# sheet = "name of lake" to the name you are interested in
-# to read in that lake
+Read in Lake Sunapee and stores in the sunapee dataframe in the environment tab.    
+    `Note this is slightly different than in the regular scipt      
+    the ../ has to be used as this file thinks the main working directory is    
+    where it is located so we have to jump up one level and then use /data`    
+```{r read data}
+sunapee.df <- read_excel("../data/lake_ice_phenology_module-.xls",  
+                         # identifies the file to read in
+  sheet="Sunapee", # identifies the sheet to read in
+  guess_max = 1000) # allows more rows to guess the type of data
+```
 
-# Read in Lake Sunapee -----
-# stores in the sunapee dataframe in the environment tab
-sunapee.df <- read_excel("data/lake_ice_phenology_module-.xls", # identifies the file to read in
-                           sheet="Sunapee", # identifies the sheet to read in
-                           guess_max = 1000) # allows more rows to guess the type of data
-
-
-# Convert Dates to proper date format -----
-# Behind this date is the number of seconds since 1970 or number of days
-sunapee.df  <- sunapee.df  %>% # tells R to use the sunapee dataframe and passes to next command
-  mutate(ice_on_date = mdy(ice_on_date), # converts the date to date using mdy as Month Day Year format 
-         ice_off_date = mdy(ice_off_date), # converts the date to date using mdy as Month Day Year format 
-         ice_on_julian = yday(ice_on_date), # converts the date to date using mdy as Month Day Year format 
+# Convert Dates to proper date format 
+Behind this date is the number of seconds since 1970 or number of days
+```{r creat dates}
+sunapee.df  <- sunapee.df  %>% # use the sunapee dataframe and passes to next command
+  mutate(ice_on_date = mdy(ice_on_date), 
+         # converts to date using mdy as Month Day Year format 
+         ice_off_date = mdy(ice_off_date), 
+         # converts to date using mdy as Month Day Year format 
+         ice_on_julian = yday(ice_on_date), 
+         # converts to date using mdy as Month Day Year format 
          ice_off_julian = yday(ice_off_date))
+         # converts to date using mdy as Month Day Year format 
+```
 
-
-# Create new varaible for break point analsys -----
-# if_else tells r to evaluate a column and do things
-# if true is the first option if false is the second option
-# can change 1970 to another year if you want a different break point
-sunapee.df  <- sunapee.df  %>% # tells R to use the sunapee dataframe and passes to next command
-         mutate(
-           pre_post_1970 = ifelse(start_year <= 1970, "pre_1970", "post_1970") # if else to make breakpoint
+# Create new varaible for break point analsys 
+if_else tells r to evaluate a column and do things      
+if true is the first option if false is the second option    
+can cahnge 1970 to another year if you want a different break point
+```{r create breakpoint}
+sunapee.df  <- sunapee.df %>% # pass sunapee date to next command
+         mutate( # mutate changes things
+           pre_post_1970 = ifelse(start_year <= 1970, "pre_1970", "post_1970") 
+           # if else to make breakpoint of 1970 ^^^^, if true^^, if false^^^
            ) 
+```
 
 
-# Regression of ice_off_doy -----
-# Work with lakes separately to calculate regression coefficients
-# the first line of code below stores a linear model in an object called sunapee.model
-# lm = linear model of ice_off_julian day is a function of start year 
-# using the data from sunapee.df
+# Regression of ice_off_doy 
+Work with lakes separately to calculate regression coefficients
+The first line of code below stores a linear model in an object called sunapee.model
+lm = linear model of ice_off_julian day is a function of start year using the data from sunapee.df    
+   
+```{r linear model}
 sunapee.model <- lm(ice_off_julian ~ start_year, data = sunapee.df)
+```
 
-# Model Summary -----
-# To see the data from the model you run this below
+
+# Model Summary
+To see the output from the model you run this below    
+```{r model summary}
 summary(sunapee.model)
+```
 
-# the output looks like 
-# Call:
-#   lm(formula = ice_off_julian ~ start_year, data = sunapee.df)
-# 
-# Residuals: # this is an estimate of the statistics of the residuals 
-#   Min      1Q  Median      3Q     Max 
-# -27.297  -5.122   1.268   6.250  16.644 
-# 
-# these are the coefficients 
-# (Intercept) = the y intercept but since years are used the intercept is not very useful
-# start_year = the slope of the line
-# the (>|t|) is the probability the value is not 0 = means nothing really
-# Coefficients:
-#               Estimate    Std. Error  t value   Pr(>|t|)    
-#   (Intercept) 294.35842     35.03231    8.402   3.82e-14 ***
-#   start_year   -0.09269      0.01804   -5.138   8.87e-07 ***
-#   ---
-#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-# 
-# Residual standard error: 9.187 on 144 degrees of freedom
-# Multiple R-squared:  0.1549,	Adjusted R-squared:  0.1491 
-# F-statistic:  26.4 on 1 and 144 DF,  p-value: 8.872e-07
-#
-# the above is important. 
-# the F-statistic determines if the model is significant or not and this one is
-# the square root of the R-stquared gives you the regression coefficient of r = 
+## Model Output
+Call:     
+  lm(formula = ice_off_julian ~ start_year, data = sunapee.df)     
+     
+Residuals: # this is an estimate of the statistics of the residuals     
+  Min      1Q  Median      3Q     Max     
+-27.297  -5.122   1.268   6.250  16.644     
+     
+**these are the coefficients**     
+**(Intercept) = the y intercept but since years are used the intercept is not very useful**     
+**start_year = the slope of the line**     
+**the (>|t|) is the probability the value is not 0 = means nothing really**     
+Coefficients:     
+              Estimate    Std. Error  t value   Pr(>|t|)     
+  (Intercept) 294.35842     35.03231    8.402   3.82e-14 ***     
+  start_year   -0.09269      0.01804   -5.138   8.87e-07 ***     
+  ---
+  Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1     
+     
+Residual standard error: 9.187 on 144 degrees of freedom     
+Multiple R-squared:  0.1549,	Adjusted R-squared:  0.1491     
+F-statistic:  26.4 on 1 and 144 DF,  p-value: 8.872e-07     
+     
+**The F-statistic determines if the model is significant or not and this one is.**       
+**The square root of the R-stquared gives you the regression coefficient of r **     
+     
+# Condensed output        
+To get a reduced amount of infomation you can run the tidy version using Broom     
 
-# Condensed output----
-# To get a reduced amount of infomation you can run the tidy version using Broom
+```{r tidy output}
 tidy(summary(sunapee.model))
+```
 
-# Create a graph of the data-----
+# Create a graph of the data     
+    
+```{r basic plot}
 sunapee.df %>% # takes the dataframe and feeds it into the plot
-  ggplot(aes(x = start_year, y = ice_off_julian)) + # tells ggplot to use variables for x and y (note the x=/y= are usually not necessary)
-  geom_point() + # adds points for individual observations
-  geom_smooth(method="lm") + # performs a linear model on the data with a 95% confidence interval shaded
-  labs(y = "Ice off day (Julian Day)", # creates the y axis label
-       x = "Year of observation" ) # creates the x axis label
- 
+  ggplot(aes(x = start_year, y = ice_off_julian)) + 
+  # tells ggplot to use variables for x and y (note the x=/y= are usually not necessary)
+  geom_point() +
+  # adds points for individual observations
+  geom_smooth(method="lm") + 
+  # performs a linear model on the data with a 95% confidence interval shaded
+  labs(y = "Ice off day (Julian Day)", 
+       # creates the y axis label
+       x = "Year of observation" ) 
+       # creates the x axis label
+```
+       
+# A prettier plot
+You can save the plot to an object as well the graph can be exported using the export button in the graph window or as below       
 
-
-# A prettier plot ----
-# You can save the plot to an object as well
-# the graph can be exported using the export button in the graph window or as below
+```{r pretty plot}
 sunapee.plot <- sunapee.df %>% # takes the dataframe and feeds it into the plot
-  ggplot(aes(x = start_year, y = ice_off_julian)) + # tells ggplot to use variables for x and y (note the x=/y= are usually not necessary)
+  ggplot(aes(x = start_year, y = ice_off_julian)) + 
+  # tells ggplot to use variables for x and y (note the x=/y= are usually not necessary)
   geom_point(size = 3, color="darkblue", fill = "red", shape = 25) + # adds points for individual observations
-  geom_smooth(method="lm") + # performs a linear model on the data with a 95% confidence interval shaded
+  geom_smooth(method="lm") + 
+  # performs a linear model on the data with a 95% confidence interval shaded
   scale_x_continuous(
-    limits = c(1860, 2020), # creates the limits of the axis - note will remove data not in range
-    breaks = seq(1860, 2020, by = 20) # sets the lables on the axis in a sequence from and to with ticks by = 
+    limits = c(1860, 2020), 
+    # creates the limits of the axis - note will remove data not in range
+    breaks = seq(1860, 2020, by = 20) 
+    # sets the lables on the axis in a sequence from and to with ticks by = 
   ) +
   labs(y = "Ice off day (Julian Day)", # creates the y axis label
        x = "Year of observation", # creates the x axis label
@@ -128,26 +161,26 @@ sunapee.plot <- sunapee.df %>% # takes the dataframe and feeds it into the plot
     axis.title = element_text(family = "Helvetica", size = 15, face = "bold"), #size of axis tit#les
     axis.text.x = element_text(family = "Helvetica", size = 16),  # size of x axis text overall
     axis.text.y = element_text(family = "Helvetica", size = 16),  # size of y axis text overall
-    plot.title = element_text(family = "Helvetica", size = 19))  # if there is a title these are the settings
+    plot.title = element_text(family = "Helvetica", size = 19))  # title settings
 
 sunapee.plot
-
+```
+     
+# Saving the plot     
+```{r save plot}
 ggsave("figures/sunapee ice off doy vs year plot.pdf", # save the plot to this file in figures
        sunapee.plot, # which plot to save - change this to change the plot saved
        device = "pdf", # can export as "tiff", "jpeg", "pdf", and others
        width = 6, # width of the plot in units
        height = 6, # height of the plot in units
        units = "in" ) # units to be used
+```
 
 
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # 1970 Break point analysis -----
-# there are a few ways to do this... 
-# 1 create separate dataframes for pre and post and then does the above approach
+There are a few ways to do this analysis... 
+## 1. The really manual method
+This method creates separate dataframes for pre and post and then does the above approach
 
 # Extract only sunapee pre 1970 data ----
 sunapee_pre1970.df <- sunapee.df %>% # use the sunapee data set 
