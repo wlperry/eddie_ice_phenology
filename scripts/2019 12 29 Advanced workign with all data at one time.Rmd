@@ -1,0 +1,154 @@
+---
+title: "Eddie Ice Phenology Module Combining all data"
+output: html_notebook
+---
+
+Note that the dates in Sunapee were incorrect
+Also in Cazenovia this was incorrect Cazenovia Lake	1889	1/17/1890	3/29/1890		88 as the ice on was 1889
+
+# Advanced working with data
+This is an advanced file to combine all the data into on file and working with it from there in a more advnaced manner. This is the way that a datascientist would work with the data rather than each sheet alone.
+
+# Install the basic libraries
+```{r install libraries}
+# install.packages("tidyverse")
+# install.packages("readxl")
+# install.packages("janitor")
+# install.packages("lubridate")
+# install.packages("broom")
+```
+
+# Load libraries    
+Load the libraries each time you run a script or program   
+```{r load libraries}
+library(tidyverse) # loads a lot of libraries in this one to add more functionality
+library(readxl) # allows you to read in excel files
+library(janitor) # cleans up column names and removes empty columns if wanted
+library(lubridate) # allows easy conversion of varaibles to date format
+library(broom) # cleans up output for easy presentation
+```
+
+
+# Read in files
+This uses a library in tidyverse called Purrr which allows you to in effect do a if then loop without looping. Here we define the path and name of the file to work with. In this file we will read in all the sheets into a dataframe list using the name of the tab. We can remove that later after we see that it works.
+
+```{r}
+path <- ("../data/lake_ice_phenology_module-.xls") # set the name of the path to import
+lakes.df <- path %>% # use that name of the file and pass it to the next steps
+  excel_sheets() %>% # uses the readxl to list the excel sheets
+  set_names() %>% # sets the names of the list elements in the dataframe as the sheet name
+  map_df(read_excel,  # uses the readxl command
+           path = path, # uses the path to read in that file
+         .id = "tabname") # sets the names the list elements as a variable tabname
+```
+
+
+# Clean up data
+This section cleans up the data and does a few conversions.
+```{r}
+lakes.df <- lakes.df %>%
+  select(- tabname) %>% # removes the column tabname
+  mutate(
+    ice_on_date    =  mdy(ice_on_date), # convert to date
+    ice_off_date    = mdy(ice_off_date), # convert to date
+    ice_on_julian   = as.numeric(ice_on_julian), # convert to numeric
+    ice_off_julian  = as.numeric(ice_off_julian) # convert to numeric
+  ) %>% 
+  mutate(
+    lake = str_to_title(lake)
+  )
+```
+
+
+# Recalcuate day of ice on
+To make this really reporoducible the goal is to only use the basic data and show all calculations and conversions. So here we recalculate the ice on day of year. Note that this did in fact show some errors in the dates that were entered. You could also compare the new variable to the old variable as shown below.
+```{r recalc ice on}
+# Recalculate ice off doy -----
+lakes.df <- lakes.df %>%
+  mutate(ice_on_julian_corr = case_when( # this uses case_when which is really and if_else for many groups
+    year(ice_on_date) > start_year ~ yday(ice_on_date),  
+    # this asks if year of ice_on date is greater than ice ice on date
+    # if it is then it gives the year of day of ice on day of year
+    year(ice_on_date) <= start_year ~ yday(ice_on_date) - yday(ymd(paste(start_year ,"12", "31", sep="-"))))) 
+# note this is more difficult if the ice on date is is equal to or less than start year
+# we need to see days before the first of the year 
+# So we calcualte day of year of ice on date and then subtract the number of days before Dec 31 
+
+```
+
+# Recalcuate day of ice off
+Recalculated ice off
+```{r recalc ice off}
+# Recalculate ice off doy -----
+lakes.df <- lakes.df %>%
+  mutate(ice_off_julian_corr = case_when(
+    year(ice_off_date) > start_year ~ yday(ice_off_date),
+    year(ice_off_date) <= start_year ~ yday(ice_off_date) - yday(ymd(paste(start_year ,"12", "31", sep="-"))))) 
+
+```
+
+
+# Plot the ice on day of year veruse year
+Here we plot all lakes with ice on day of year versue time.
+Note you could add a + at the end of geom_point() and on the next line
+geom_smooth(method="lm") which adds a linear regression line for all lakes separrately
+```{r ice_on}
+lakes.df %>% 
+  ggplot(aes(x=start_year, y=ice_on_julian_corr, color=lake)) +
+  geom_line() +
+  geom_point() +
+  geom_smooth(method="lm")
+```
+
+# Graph ice off day of year
+THis shows the ice off day of year or all lakes
+```{r ice_off}
+lakes.df %>% 
+  ggplot(aes(x=start_year, y=ice_off_julian_corr, color=lake)) +
+  geom_line() +
+  geom_point()+
+  geom_smooth(method="lm")
+```
+
+# Convert to long fromat
+so working with data in what is a common excel format works ok but limits the power of r. to do this we convert it to a long format. For this it will repeat lake and start year and copy ice_on and the corresponding day of year and repeat lake and start year and ice off day of year. This makes graphing super powerful.
+
+```{r}
+lakes_long.df <- lakes.df %>% 
+            select(-ice_on_julian, -ice_off_julian, -ice_on_date, - ice_off_date) %>% # remove unnecessary columns
+            gather(ice_cat, doy,    # this will put the column names in a variable ice_cat and the day of year in a column doy
+                   -lake, -start_year) # the - lake and - start_year means it will leave these alone and repeat these 
+  
+```
+
+# Plot replicating Magnuson et al. 2000
+This will plot ice on and off day of year with each lake colored separately and differnt lines for ice on and off
+
+```{r}
+lakes_long.df %>% 
+ggplot(aes(start_year, doy, color=lake, shape=ice_cat, linetype=ice_cat)) +
+geom_line()
+geom_point()
+```
+
+# Plotting ice on and off for each lake separately
+Enter the name of the lake you are interested in
+```{r}
+lakes_long.df %>% 
+filter(lake=="Lake Baikal") %>% 
+ggplot(aes(start_year, doy, color=lake, shape=ice_cat, linetype=ice_cat)) +
+geom_line()
+geom_point() 
+```
+
+# Ice on and off for individual lakes with regession lines
+
+```{r}
+lakes_long.df %>% 
+filter(lake=="Lake Baikal") %>% 
+ggplot(aes(start_year, doy, color=lake, shape=ice_cat, linetype=ice_cat)) +
+geom_line()+
+geom_point() +
+geom_smooth(method = "lm")
+```
+
